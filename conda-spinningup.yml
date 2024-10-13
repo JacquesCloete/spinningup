@@ -1,0 +1,23 @@
+name: spinningup
+channels:
+  - conda-forge
+dependencies:
+
+  # Basics
+  - python=3.6
+  - pip
+
+  # Logging / Monitoring
+  - wandb
+  # - tensorboard # Seems to cause metaclass conflict when tensorflow (v1) is imported, so I'm leaving it out
+
+  # Experiment Configuration
+  - hydra
+
+  # Mujoco (and packages to make it work!)
+  # Note: may be useful to refer to https://github.com/openai/mujoco-py
+  - pip:
+    - mujoco-py
+  - gym[mujoco,robotics]
+  - libstdcxx-ng  # https://stackoverflow.com/questions/73836387/how-to-fix-glibcxx-3-4-30-not-found-in-ubuntu-22-04
+  - cython<3  # https://github.com/openai/mujoco-py/issues/773
