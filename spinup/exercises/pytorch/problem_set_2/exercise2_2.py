@@ -1,9 +1,15 @@
-from spinup.algos.pytorch.ddpg.core import mlp, MLPActorCritic
-from spinup.utils.run_utils import ExperimentGrid
-from spinup import ddpg_pytorch as ddpg
 import numpy as np
 import torch
 import torch.nn as nn
+
+from spinup import ddpg_pytorch as ddpg
+from spinup.algos.pytorch.ddpg.core import MLPActorCritic, mlp
+from spinup.utils.run_utils import ExperimentGrid
+
+# Since exercise2_1 doesn't have a python file, I'll put the answer here:
+# Training the value function is important! 80 iters is way better than 0 iters.
+# With a well-trained value function, the agent is able to quickly make progress.
+# With a poorly-trained value function, the agent gets stuck early on.
 
 """
 
@@ -21,6 +27,7 @@ You do NOT need to write code for this exercise.
 Bugged Actor-Critic
 """
 
+
 class BuggedMLPActor(nn.Module):
 
     def __init__(self, obs_dim, act_dim, hidden_sizes, activation, act_limit):
@@ -33,6 +40,7 @@ class BuggedMLPActor(nn.Module):
         # Return output from network scaled to action space limits.
         return self.act_limit * self.pi(obs)
 
+
 class BuggedMLPQFunction(nn.Module):
 
     def __init__(self, obs_dim, act_dim, hidden_sizes, activation):
@@ -41,11 +49,32 @@ class BuggedMLPQFunction(nn.Module):
 
     def forward(self, obs, act):
         return self.q(torch.cat([obs, act], dim=-1))
+        # The bug is that the above should be squeezed
+        # q = self.q(torch.cat([obs, act], dim=-1))
+        # return torch.squeeze(q, -1)
+
+        # The correct version squeezes ouputs so that they have shape [batch size],
+        # whereas the bugged version doesn’t, resulting in Q-functions with shape
+        # [batch size, 1]
+
+        # Tensors with shapes [batch size] and [batch size, 1] are broadcast compatible,
+        # but the behavior is not actually what you might expect!
+
+        # Adding or multiplying a shape [5] tensor by a shape [5,1] tensor returns a
+        # shape [5,5] tensor!
+        # This is because the elements are arranged across different dimensions
+        # (Row vs column array sort of thing)
+
 
 class BuggedMLPActorCritic(nn.Module):
 
-    def __init__(self, observation_space, action_space, hidden_sizes=(256,256),
-                 activation=nn.ReLU):
+    def __init__(
+        self,
+        observation_space,
+        action_space,
+        hidden_sizes=(256, 256),
+        activation=nn.ReLU,
+    ):
         super().__init__()
 
         obs_dim = observation_space.shape[0]
@@ -61,33 +90,39 @@ class BuggedMLPActorCritic(nn.Module):
             return self.pi(obs).numpy()
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     import argparse
+
     parser = argparse.ArgumentParser()
-    parser.add_argument('--env', type=str, default='HalfCheetah-v2')
-    parser.add_argument('--h', type=int, default=300)
-    parser.add_argument('--l', type=int, default=1)
-    parser.add_argument('--num_runs', '-n', type=int, default=3)
-    parser.add_argument('--steps_per_epoch', '-s', type=int, default=5000)
-    parser.add_argument('--total_steps', '-t', type=int, default=int(5e4))
+    parser.add_argument("--env", type=str, default="HalfCheetah-v2")
+    parser.add_argument("--h", type=int, default=300)
+    parser.add_argument("--l", type=int, default=1)
+    parser.add_argument("--num_runs", "-n", type=int, default=3)
+    parser.add_argument("--steps_per_epoch", "-s", type=int, default=5000)
+    parser.add_argument("--total_steps", "-t", type=int, default=int(5e4))
     args = parser.parse_args()
 
     def ddpg_with_actor_critic(bugged, **kwargs):
-        from spinup.exercises.pytorch.problem_set_2.exercise2_2 import BuggedMLPActorCritic
-        actor_critic = BuggedMLPActorCritic if bugged else MLPActorCritic
-        return ddpg(actor_critic=actor_critic, 
-                    ac_kwargs=dict(hidden_sizes=[args.h]*args.l),
-                    start_steps=5000,
-                    max_ep_len=150,
-                    batch_size=64,
-                    polyak=0.95,
-                    **kwargs)
+        from spinup.exercises.pytorch.problem_set_2.exercise2_2 import (
+            BuggedMLPActorCritic,
+        )
 
-    eg = ExperimentGrid(name='ex2-2_ddpg')
-    eg.add('replay_size', int(args.total_steps))
-    eg.add('env_name', args.env, '', True)
-    eg.add('seed', [10*i for i in range(args.num_runs)])
-    eg.add('epochs', int(args.total_steps / args.steps_per_epoch))
-    eg.add('steps_per_epoch', args.steps_per_epoch)
-    eg.add('bugged', [False, True])
+        actor_critic = BuggedMLPActorCritic if bugged else MLPActorCritic
+        return ddpg(
+            actor_critic=actor_critic,
+            ac_kwargs=dict(hidden_sizes=[args.h] * args.l),
+            start_steps=5000,
+            max_ep_len=150,
+            batch_size=64,
+            polyak=0.95,
+            **kwargs
+        )
+
+    eg = ExperimentGrid(name="ex2-2_ddpg")
+    eg.add("replay_size", int(args.total_steps))
+    eg.add("env_name", args.env, "", True)
+    eg.add("seed", [10 * i for i in range(args.num_runs)])
+    eg.add("epochs", int(args.total_steps / args.steps_per_epoch))
+    eg.add("steps_per_epoch", args.steps_per_epoch)
+    eg.add("bugged", [False, True])
     eg.run(ddpg_with_actor_critic, datestamp=True)

@@ -1,5 +1,5 @@
-import torch
 import numpy as np
+import torch
 
 """
 
@@ -12,6 +12,7 @@ distributions, and returns a Tensor containing the log
 likelihoods of those samples.
 
 """
+
 
 def gaussian_likelihood(x, mu, log_std):
     """
@@ -26,17 +27,34 @@ def gaussian_likelihood(x, mu, log_std):
     #######################
     #                     #
     #   YOUR CODE HERE    #
+
+    # Note: the spinningup solution is a bit more efficient (fewer sum/square operations)
+    # Also they include a small epsilon to avoid numerical instability
+    # Note: inputs from exercise1_2 don't have a batch dimension
+    # The spinningup solution is robust to this, so definitely use that in future
+    if len(x.shape) == 1:
+        dim = x.shape[0]
+        dim_element = 0
+    else:
+        batch, dim = x.shape
+        dim_element = 1
+    log_prob = -0.5 * (
+        dim * np.log(2 * np.pi)  # constant term
+        + 2 * log_std.sum()  # sum of log stds
+        + ((x - mu) ** 2 / log_std.exp() ** 2).sum(dim=dim_element)  # sum of SqErr
+    )
+
     #                     #
     #######################
-    return torch.zeros(1)
+    return log_prob
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     """
     Run this file to verify your solution.
     """
-    from spinup.exercises.pytorch.problem_set_1_solutions import exercise1_1_soln
     from spinup.exercises.common import print_result
+    from spinup.exercises.pytorch.problem_set_1_solutions import exercise1_1_soln
 
     batch_size = 32
     dim = 10
